@@ -2,13 +2,20 @@ from time import sleep
 from multiprocessing.managers import BaseManager
 from typing import Callable, TypeVar
 import queue
+import logging
 
 Any = TypeVar('Any') # Can be anything
 
 class QueueManager(BaseManager):
     pass
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - [%(name)s]: %(message)s')
+log = logging.getLogger("yuki_queue")
+show_log = False
 
-debug = False
+def _debug_log(msg):
+    if show_log:
+        log.info(msg)
 
 job_q = queue.Queue()
 result_q = queue.Queue()
@@ -40,21 +47,23 @@ class Master:
         _result_q = self.manager.get_result_q()
         
         for job in jobs:
-            print(f"Put job {job} ...")
+            _debug_log(f"Put job {job} ...")
             _job_q.put(job)
 
         self.items = len(jobs)
         self.finished = []
         
-        print("Try get result...")
-
+        _debug_log("Try get result...")
+        
         while True:
             if self.items == 0:
                 break
             for result in self.get_finished(_result_q):
+                _debug_log("Get a result %s" % result)
                 self.finished.append(result)
             sleep(timeout)
-
+        
+        _debug_log("All finished, cool!!!")
         self.manager.shutdown()
 
 class Worker:
@@ -77,7 +86,7 @@ class Worker:
                 elif max_attempts == None:
                     pass
                 else:
-                    print("Try again")
+                    log.info("Try connect again...")
                     max_attempts -= 1
                     sleep(conn_interval)
             else:
@@ -90,8 +99,10 @@ class Worker:
         while True:
             try:
                 n = task.get(timeout=timeout)
+                _debug_log(f'Worker: Get {n}')
                 res = apply_f(n)
                 sleep(interval)
+                _debug_log(f"Worker: {n} finished")
                 result.put(res)
             except queue.Empty:
                 break

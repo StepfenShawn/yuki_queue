@@ -7,4 +7,4 @@ if __name__ == '__main__':
     worker = Worker(host='127.0.0.1',
                     port=5000,
                     authkey=b'abc')
-    worker.run(print)
+    worker.run(apply_f=lambda n:n*n)
